@@ -1,0 +1,9 @@
+# Compile
+nasm -f bin boot/boot.asm -o boot/boot.bin
+
+# Create disk image
+dd if=/dev/zero of=disk.img bs=1048576 count=1
+dd if=boot/boot.bin of=disk.img conv=notrunc
+
+# Run QEMU
+qemu-system-i386 -drive format=raw,file=disk.img
