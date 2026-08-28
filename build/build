@@ -1,9 +1,17 @@
-# Compile
-nasm -f bin boot/boot.asm -o boot/boot.bin
+# Compile stage 1
+nasm -f bin boot/stage1.asm -o boot/stage1.bin
+
+# Compile Stage 2
+nasm -f bin boot/stage2.asm -o boot/stage2.bin
 
 # Create disk image
 dd if=/dev/zero of=disk.img bs=1048576 count=1
-dd if=boot/boot.bin of=disk.img conv=notrunc
+
+# Put Stage 1 in sector 0
+dd if=boot/stage1.bin of=disk.img conv=notrunc
+
+# Put Stage 2 in sector 1
+dd if=boot/stage2.bin of=disk.img bs=512 seek=1 conv=notrunc
 
 # Run QEMU
 qemu-system-i386 -drive format=raw,file=disk.img
