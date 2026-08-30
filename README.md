@@ -1,1 +1,7 @@
-#### Kernel
+### Kernel
+
+#### Build
+
+```bash
+./build
+```
