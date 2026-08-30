@@ -15,3 +15,7 @@ dd if=boot/stage2.bin of=disk.img bs=512 seek=1 conv=notrunc
 
 # Run QEMU
 qemu-system-i386 -drive format=raw,file=disk.img
+
+# Clean up intermediate files
+rm boot/stage1.bin
+rm boot/stage2.bin
