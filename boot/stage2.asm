@@ -12,6 +12,10 @@ jmp 0x08:protected_mode                ; set CS = 0x08
 
 [bits 32]
 protected_mode:
+    mov ax, 0x10
+    mov ds, ax
+    mov byte [0xB8000], 'H'
+    
     jmp $                              ; stay here forever for now
 
 gdt:
