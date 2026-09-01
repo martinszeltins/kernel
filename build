@@ -1,3 +1,6 @@
+#!/bin/sh
+set -e
+
 # Compile stage 1
 nasm -f bin boot/stage1.asm -o boot/stage1.bin
 
