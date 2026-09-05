@@ -1,4 +1,4 @@
-org 0x7E00                             ; BIOS loads us at 0x7E00 (31 KB). Tell NASM our
+org 0x7E00                             ; Stage 1 loads us at 0x7E00 (31.5 KB). Tell NASM our
                                        ; location so label addresses are calculated correctly.
 
 ; -----------------------------------------------------------------------------
@@ -47,7 +47,7 @@ protected_mode:
     ; Later, we will take the first entry and point it to the Level 3 (PDPT) table.
     
     ; -------------------------------------------------------------------------
-    ; Create PML4 Table  (96 KB - 100 KB)
+    ; Create PML4 Table (Level 4)  (96 KB - 100 KB)
     ; -------------------------------------------------------------------------
 
     mov eax, 98304                      ; 98304 bytes (96 KB) - address of the beginning of the PML4 table
@@ -63,6 +63,60 @@ protected_mode:
         sub ebx, 1                      ; One fewer entry left
         cmp ebx, 0                      ; Are we finished?
         jne create_pml4                 ; No → create the next entry
+
+    ; -------------------------------------------------------------------------
+    ; Create PDPT Table (Level 3) (100 KB - 104 KB)
+    ; -------------------------------------------------------------------------
+
+    mov eax, 102400                     ; 102400 bytes (100 KB) - address of the beginning of the PDPT table
+                                        ; 100 KB is right after PML4
+    mov ebx, 512                        ; Number of entries to clear
+
+    create_pdpt:
+        mov dword [eax], 0              ; Clear first 32 bits of this entry
+        mov dword [eax + 4], 0          ; Clear second 32 bits of this entry
+
+        add eax, 8                      ; Point EAX at the next 8-byte entry
+
+        sub ebx, 1                      ; One fewer entry left
+        cmp ebx, 0                      ; Are we finished?
+        jne create_pdpt                 ; No → create the next entry
+
+    ; -------------------------------------------------------------------------
+    ; Create PD Table (Level 2) (104 KB - 108 KB)
+    ; -------------------------------------------------------------------------
+
+    mov eax, 106496                     ; 106496 bytes (104 KB) - address of the beginning of the PD table
+                                        ; 104 KB is right after PDPT
+    mov ebx, 512                        ; Number of entries to clear
+
+    create_pd:
+        mov dword [eax], 0              ; Clear first 32 bits of this entry
+        mov dword [eax + 4], 0          ; Clear second 32 bits of this entry
+
+        add eax, 8                      ; Point EAX at the next 8-byte entry
+
+        sub ebx, 1                      ; One fewer entry left
+        cmp ebx, 0                      ; Are we finished?
+        jne create_pd                   ; No → create the next entry
+
+    ; -------------------------------------------------------------------------
+    ; Create PT Table (Level 1) (108 KB - 112 KB)
+    ; -------------------------------------------------------------------------
+
+    mov eax, 110592                     ; 110592 bytes (108 KB) - address of the beginning of the PT table
+                                        ; 108 KB is right after PD
+    mov ebx, 512                        ; Number of entries to clear
+
+    create_pt:
+        mov dword [eax], 0              ; Clear first 32 bits of this entry
+        mov dword [eax + 4], 0          ; Clear second 32 bits of this entry
+
+        add eax, 8                      ; Point EAX at the next 8-byte entry
+
+        sub ebx, 1                      ; One fewer entry left
+        cmp ebx, 0                      ; Are we finished?
+        jne create_pt                   ; No → create the next entry
 
     mov byte [0xB8000], 'H'             ; Just put H on the screen
     jmp $                               ; And stay here forever for now
@@ -103,8 +157,8 @@ gdt:
 ; can load it into memory.
 
 gdt_descriptor:
-    dw 23                               ; gdt size
-    dd gdt                              ; gdt address
+    dw 23                               ; GDT size (technically GDT limit 24 bytes - 1)
+    dd gdt                              ; GDT address
 
 
 ; -----------------------------------------------------------------------------
