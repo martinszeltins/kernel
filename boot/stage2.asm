@@ -118,6 +118,24 @@ protected_mode:
         cmp ebx, 0                      ; Are we finished?
         jne create_pt                   ; No → create the next entry
 
+
+    ; -------------------------------------------------------------------------
+    ; PML4[0] —> PDPT link
+    ; -------------------------------------------------------------------------
+    ;
+    ; For our 2 stack pages mapping, we will need to create the links:
+    ; PML4[0] —> PDPT[0] —> PD[0] —> PT[6,7]
+    ;
+    ; Level 4 Entry (PML4E)
+    ; ┌──┬────────────┬──────────────────────────────┬───┬─┬─┬─┬─┬─┬─┐
+    ; │63│ 62 .ign. 52│        51 ..addr.. 12        │...│A│C│W│U│R│P│
+    ; └──┴────────────┴──────────────────────────────┴───┴─┴─┴─┴─┴─┴─┘
+    
+                                                                   ; 00000000000000011001 (PDPT address)
+    mov dword [98304], 00000000000000011001000000000011b           ; lower bits of PML4[0] entry (since we are in 32-bit mode)
+    mov dword [98304 + 4], 00000000000000000000000000000000b       ; upper bits
+
+
     mov byte [0xB8000], 'H'             ; Just put H on the screen
     jmp $                               ; And stay here forever for now
 
