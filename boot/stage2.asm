@@ -130,8 +130,9 @@ protected_mode:
     ; ┌──┬────────────┬──────────────────────────────┬───┬─┬─┬─┬─┬─┬─┐
     ; │63│ 62 .ign. 52│        51 ..addr.. 12        │...│A│C│W│U│R│P│
     ; └──┴────────────┴──────────────────────────────┴───┴─┴─┴─┴─┴─┴─┘
-    
-                                                                   ; 00000000000000011001 (PDPT address)
+
+                                                                   ; 00000000000000011001 (upper address bits of PDPT address)
+                                                                   ; CPU knows the lower 12 address bits are 0 because the table is 4 KB aligned
     mov dword [98304], 00000000000000011001000000000011b           ; lower bits of PML4[0] entry (since we are in 32-bit mode)
     mov dword [98304 + 4], 00000000000000000000000000000000b       ; upper bits
 
