@@ -133,15 +133,15 @@ protected_mode:
 
                                                                    ; 00000000000000011001 (upper address bits of PDPT address)
                                                                    ; CPU knows the lower 12 address bits are 0 because the table is 4 KB aligned
-    mov dword [98304], 00000000000000011001000000000011b           ; lower bits of PML4[0] entry (since we are in 32-bit mode)
-    mov dword [98304 + 4], 00000000000000000000000000000000b       ; upper bits
+    mov dword [98304], 00000000000000011001000000000011b           ; lower 32 bits of PML4[0] entry (since we are in 32-bit mode)
+    mov dword [98304 + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
     ; -------------------------------------------------------------------------
     ; PDPT[0] —> PD link
     ; -------------------------------------------------------------------------
 
-    mov dword [102400], 00000000000000011010000000000011b           ; lower bits of PDPT[0] entry
-    mov dword [102400 + 4], 00000000000000000000000000000000b       ; upper bits
+    mov dword [102400], 00000000000000011010000000000011b           ; lower 32 bits of PDPT[0] entry
+    mov dword [102400 + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
 
     mov byte [0xB8000], 'H'             ; Just put H on the screen
