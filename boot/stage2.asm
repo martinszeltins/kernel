@@ -1,66 +1,114 @@
-org 0x7E00                             ; Stage 2 loads us in RAM at 7E00 (31.5 KB)
+org 0x7E00                             ; BIOS loads us at 0x7E00 (31 KB). Tell NASM our
+                                       ; location so label addresses are calculated correctly.
 
-cli                                    ; disable interrupts
-lgdt [gdt_descriptor]                  ; load gdt
+; -----------------------------------------------------------------------------
+; Enter Protected Mode
+; -----------------------------------------------------------------------------
 
-                                       ; turn on protected mode
-mov eax, cr0                           ; copy the current CR0 value into EAX
-or eax, 0x00000001                     ; turn on bit 0 (CR0.PE), leave all other bits unchanged
-mov cr0, eax                           ; copy the modified value back into CR0
+cli                                     ; Disable interrupts
+lgdt [gdt_descriptor]                   ; Load GDT
 
-jmp 0x08:protected_mode                ; set CS = 0x08
+; Turn on protected mode
+mov eax, cr0                            ; Copy the current CR0 value into EAX
+or eax, 0x00000001                      ; Turn on bit 0 (CR0.PE), leave all other bits unchanged
+mov cr0, eax                            ; Copy the modified value back into CR0
+
+jmp 0x08:protected_mode                 ; Set CS = 0x08
+
+
+; -----------------------------------------------------------------------------
+; 32-bit Protected Mode
+; -----------------------------------------------------------------------------
 
 [bits 32]
+
 protected_mode:
-    mov ax, 0x10                       ; allows us to access memory in 32-bit protected mode,
-    mov ds, ax                         ; set data segment to 0x10 (gdt selector for 32-bit mode)
-    mov ss, ax                         ; set stack segment to 0x10 (gdt selector for 32-bit mode)
-    mov es, ax                         ; set extra segment to 0x10 (gdt selector for 32-bit mode)
-    mov fs, ax                         ; set fs segment to 0x10 (gdt selector for 32-bit mode)
-    mov gs, ax                         ; set gs segment to 0x10 (gdt selector for 32-bit mode)
-    mov esp, 0x7C00                    ; set the stack pointer to 31 KB
+    mov ax, 0x10                        ; 0x10 selects GDT entry #2 — our 32-bit data segment
 
-                                       ; Set up Paging
-                                       ; Create Level 4 (PML4) which will live at 96 KB (right after stage 2)
-                                       ; It contains 512 entries. Each entry is 8 bytes (64 bits) (4 KB in total)
+    mov ds, ax                          ; Use the data segment for normal memory access
+    mov ss, ax                          ; Use the data segment for the stack
+    mov es, ax                          ; Use the data segment for ES
+    mov fs, ax                          ; Use the data segment for FS
+    mov gs, ax                          ; Use the data segment for GS
 
-                                       ; Create PML4 Table  (96 KB - 100 KB)
-    mov eax, 98304                     ; 96 KB - address of first PML4 entry
-    mov ebx, 512                       ; number of entries to clear
+    mov esp, 0x7C00                     ; Set the 32-bit stack pointer to 31 KB
+
+
+    ; -------------------------------------------------------------------------
+    ; Set up Paging
+    ; -------------------------------------------------------------------------
+    ;
+    ; Paging is required for 64-bit long mode.
+    ; Create Level 4 (PML4) table which will live at 96 KB (right after stage 2)
+    ; It contains 512 entries. Each entry is 8 bytes (64 bits) (4 KB in total)
+    ;
+    ; For now, all we need to do is clear the whole table.
+    ; And since bit 0 of each entry is the Present bit, we can just write 0s to the whole table.
+    ; Later, we will take the first entry and point it to the Level 3 (PDPT) table.
+    
+    ; -------------------------------------------------------------------------
+    ; Create PML4 Table  (96 KB - 100 KB)
+    ; -------------------------------------------------------------------------
+
+    mov eax, 98304                      ; 98304 bytes (96 KB) - address of the beginning of the PML4 table
+                                        ; 96 KB is right after Stage 2
+    mov ebx, 512                        ; Number of entries to clear
 
     create_pml4:
-        mov dword [eax], 0             ; clear first 32 bits of this entry
-        mov dword [eax + 4], 0         ; clear second 32 bits of this entry
+        mov dword [eax], 0              ; Clear first 32 bits of this entry
+        mov dword [eax + 4], 0          ; Clear second 32 bits of this entry
 
-        add eax, 8                     ; point EAX at the next 8-byte entry
+        add eax, 8                      ; Point EAX at the next 8-byte entry
 
-        sub ebx, 1                     ; one fewer entry left
-        cmp ebx, 0                     ; are we finished?
-        jne create_pml4                ; no → create the next entry
+        sub ebx, 1                      ; One fewer entry left
+        cmp ebx, 0                      ; Are we finished?
+        jne create_pml4                 ; No → create the next entry
 
-    mov byte [0xB8000], 'H'            ; just put H on the screen
-    
-    jmp $                              ; stay here forever for now
+    mov byte [0xB8000], 'H'             ; Just put H on the screen
+    jmp $                               ; And stay here forever for now
+
+
+; -----------------------------------------------------------------------------
+; GDT (Global Descriptor Table)
+; -----------------------------------------------------------------------------
+;
+; Required for entering the protected mode. In protected mode, the CPU uses a
+; different memory addressing logic. Instead of using the segment:offset logic,
+; it uses the segment as a selector in the GDT table. This simplifies memory
+; access quite a bit.
 
 gdt:
-    db 0, 0, 0, 0, 0, 0, 0, 0          ; entry #0 - null
+    db 0, 0, 0, 0, 0, 0, 0, 0           ; entry #0 - null
 
-                                       ; entry #1 - code segment (FF FF 00 00 00 9A CF 00)
-    db 0xff, 0xff                      ; limit: 4 GB
-    db 0, 0, 0                         ; base: 0
-    db 10011010b                       ; permissions: code, readable, ring 0, present
-    db 11001111b                       ; 32bit, 4 KB granularity, upper limit = F
-    db 0                               ; base: 0
+                                        ; entry #1 - code segment (FF FF 00 00 00 9A CF 00)
+    db 0xff, 0xff                       ; limit: 4 GB
+    db 0, 0, 0                          ; base: 0
+    db 10011010b                        ; permissions: code, readable, ring 0, present
+    db 11001111b                        ; 32bit, 4 KB granularity, upper limit = F
+    db 0                                ; base: 0
 
-                                       ; entry #2 - data segment (FF FF 00 00 00 92 CF 00)
-    db 0xff, 0xff                      ; limit: 4 GB
-    db 0, 0, 0                         ; base: 0
-    db 10010010b                       ; permissions: data, writable, ring 0, present
-    db 11001111b                       ; 32bit, 4 KB granularity, upper limit = F
-    db 0                               ; base: 0
+                                        ; entry #2 - data segment (FF FF 00 00 00 92 CF 00)
+    db 0xff, 0xff                       ; limit: 4 GB
+    db 0, 0, 0                          ; base: 0
+    db 10010010b                        ; permissions: data, writable, ring 0, present
+    db 11001111b                        ; 32bit, 4 KB granularity, upper limit = F
+    db 0                                ; base: 0
+
+
+; -----------------------------------------------------------------------------
+; GDT Descriptor
+; -----------------------------------------------------------------------------
+;
+; A simple structure telling the CPU the address and size of the GDT table so it
+; can load it into memory.
 
 gdt_descriptor:
-    dw 23                              ; gdt size
-    dd gdt                             ; gdt address
+    dw 23                               ; gdt size
+    dd gdt                              ; gdt address
 
-times 65024 - ($ - $$) db 0            ; make Stage 2 exactly 65024 bytes (63.5 KB)
+
+; -----------------------------------------------------------------------------
+; Stage 2 Padding
+; -----------------------------------------------------------------------------
+
+times 65024 - ($ - $$) db 0             ; make Stage 2 exactly 65024 bytes (63.5 KB)

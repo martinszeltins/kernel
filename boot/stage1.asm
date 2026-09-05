@@ -1,45 +1,65 @@
-org 0x7C00                     ; BIOS loads us in RAM at 7C00 (31 KB)
-                               ; inform assembler about our location so
-                               ; it can calcuate label addresses etc.
+org 0x7C00                     ; BIOS loads us at 0x7C00 (31 KB). Tell NASM our
+                               ; location so label addresses are calculated correctly.
 
-mov ax, 0                      ; set the stack pointer to 7C00
-mov ss, ax                     ; it will grow upwards towards 0
+
+; -----------------------------------------------------------------------------
+; Stack
+; -----------------------------------------------------------------------------
+;
+; Se the Stack pointer to 0x7C00. The stack will grow upwards toward 0.
+; 0x7C00 happens to also be the address of Stage 1. Stage 1 grows downwards,
+; whereas the stack grows upwards.
+
+mov ax, 0
+mov ss, ax
 mov sp, 0x7C00
 
 
-                               ; the only job of stage 1 boot sector is to
-                               ; load the stage 2 sector and jump to it.
+; -----------------------------------------------------------------------------
+; Load Stage 2
+; -----------------------------------------------------------------------------
+;
+; The only job of Stage 1 is to load Stage 2 into RAM and jump to it.
+;
+; Stage 2 lives on disk from sector 2 to sector 128. It is 63.5 KB and
+; we want to load it into memory at 31.5 KB - 95 KB.
 
-                               ; ask BIOS to read 127 blocks/sectors from
-                               ; disk starting from sector 2 into memory
-                               ; address at 31.5 KB (after stage 1)
-                               ; we have decided that our stage 2 will be
-                               ; 127 sectors (64 KB) big.
-
-
-mov ax, 0                      ; BIOS expects to find the address of the packet
-mov ds, ax                     ; at DS:SI
+mov ax, 0                                ; BIOS expects the packet address in DS:SI
+mov ds, ax
 mov si, disk_read_packet
-                               ; ┌──────┐  ┌──────────────────┐  ┌──────┐
-                               ; │  DS  │  │          SI      │  │  AH  │
-                               ; │  0   │  │ disk_packet addr │  │ 0x42 │
-                               ; └──────┘  └──────────────────┘  └──────┘
+mov ah, 0x42                             ; 0x42 — BIOS extended disk read function
 
-mov ah, 0x42                   ; request BIOS extended disk read routine
-int 0x13                       ; call BIOS read disk interrupt
+;
+; ┌──────┐  ┌──────────────────┐  ┌──────┐
+; │  DS  │  │        SI        │  │  AH  │
+; │  0   │  │ packet address   │  │ 0x42 │
+; └──────┘  └──────────────────┘  └──────┘
 
-jmp 0x0000:0x7E00              ; jump to newly loaded stage 2 at 31.5 KB
+int 0x13                                 ; Call BIOS disk interrupt
+
+jmp 0x0000:0x7E00                        ; Jump to newly loaded stage 2 at 31.5 KB
 
 
-disk_read_packet:                            
-    db 0x10                    ; packet size (16 bytes)
-    db 0                       ; reserved
-    dw 127                     ; read 127 sectors
-    dw 0                       ; offset    (07E0:0000) = 0x07E0 × 16 + 0 = 
-    dw 0x07E0                  ; segment   31.5 KB    (RAM location of the read data)
-    dq 1                       ; start sector
+; -----------------------------------------------------------------------------
+; BIOS Disk Read Packet
+; -----------------------------------------------------------------------------
 
-times 510 - ($ - $$) db 0      ; $ - current address, $$ - start address
-                               ; same as times 495 db 0
+disk_read_packet:
+    db 0x10                             ; Packet size: 16 bytes (0x10)
+    db 0                                ; Reserved
+    dw 127                              ; Number of sectors to read
+    dw 0                                ; Destination offset:  0000 (07E0:0000) = 0x07E0 × 16 + 0
+    dw 0x07E0                           ; Destination segment: 0x7E00 = 31.5 KB  (After Stage 1)
+    dq 1                                ; Starting disk sector (1)
 
-db 0x55, 0xAA                  ; boot signature (0x55, 0xAA)
+
+; -----------------------------------------------------------------------------
+; Boot Signature
+; -----------------------------------------------------------------------------
+;
+; This is how BIOS recognizes a bootable disk.
+; The last two bytes must be 0x55 and 0xAA (alternating 1s and 0s)
+; 01010101 10101010
+
+times 510 - ($ - $$) db 0               ; $ - current address, $$ - start address
+db 0x55, 0xAA                           ; BIOS boot signature (0x55, 0xAA)
