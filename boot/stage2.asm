@@ -13,7 +13,7 @@ mov eax, cr0                            ; Copy the current CR0 value into EAX
 or eax, 0x00000001                      ; Turn on bit 0 (CR0.PE), leave all other bits unchanged
 mov cr0, eax                            ; Copy the modified value back into CR0
 
-jmp 0x08:protected_mode                 ; Set CS = 0x08
+jmp 0x08:protected_mode                 ; Set CS = 0x08, GDT selector for entry #1 (code segment)
 
 
 ; -----------------------------------------------------------------------------
