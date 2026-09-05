@@ -143,6 +143,13 @@ protected_mode:
     mov dword [102400], 00000000000000011010000000000011b           ; lower 32 bits of PDPT[0] entry
     mov dword [102400 + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
+    ; -------------------------------------------------------------------------
+    ; PD[0] —> PT link
+    ; -------------------------------------------------------------------------
+
+    mov dword [106496], 00000000000000011011000000000011b           ; lower 32 bits of PD[0] entry
+    mov dword [106496 + 4], 00000000000000000000000000000000b       ; upper 32 bits
+
 
     mov byte [0xB8000], 'H'             ; Just put H on the screen
     jmp $                               ; And stay here forever for now
