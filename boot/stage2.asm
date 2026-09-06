@@ -150,6 +150,13 @@ protected_mode:
     mov dword [106496], 00000000000000011011000000000011b           ; lower 32 bits of PD[0] entry
     mov dword [106496 + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
+    ; -------------------------------------------------------------------------
+    ; PT[6] - Stack (24 KB - 28 KB)
+    ; -------------------------------------------------------------------------
+
+    mov dword [110640], 00000000000000000110000000000011b           ; lower 32 bits of PT[6] entry
+    mov dword [110640 + 4], 00000000000000000000000000000000b       ; upper 32 bits
+
 
     mov byte [0xB8000], 'H'             ; Just put H on the screen
     jmp $                               ; And stay here forever for now
