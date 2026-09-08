@@ -9,11 +9,11 @@ cli                                     ; Disable interrupts
 lgdt [gdt_descriptor]                   ; Load GDT
 
 ; Turn on protected mode
-mov eax, cr0                            ; Copy the current CR0 value into EAX
-or eax, 0x00000001                      ; Turn on bit 0 (CR0.PE), leave all other bits unchanged
-mov cr0, eax                            ; Copy the modified value back into CR0
+mov eax, cr0                                 ; Copy the current CR0 value into EAX
+or eax, 0b00000000000000000000000000000001   ; Turn on bit 0 (CR0.PE), leave all other bits unchanged
+mov cr0, eax                                 ; Copy the modified value back into CR0
 
-jmp 0x08:protected_mode                 ; Set CS = 0x08, GDT selector for entry #1 (code segment)
+jmp 0x08:protected_mode                      ; Set CS = 0x08, GDT selector for entry #1 (code segment)
 
 
 ; -----------------------------------------------------------------------------
@@ -316,8 +316,73 @@ protected_mode:
     mov dword [eax + (8 * 184) + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
 
-    mov byte [0xB8000], 'H'             ; Just put H on the screen
-    jmp $                               ; And stay here forever for now
+    ; -----------------------------------------------------------------------
+    ; Prepare and Enter 64-bit Long Mode
+    ; -----------------------------------------------------------------------
+    ;
+    ; Now that our page tables are in place, we can flip a few CPU switches
+    ; and finally enter 64-bit mode.
+    ;
+    ; 1. Set CR4.PAE bit. This transition from the old 32-bit 2-level mode
+    ;    to the 64-bit 3-level paging mode.
+    ;
+    ; 2. Put the PML4 address in CR3 register to tell the CPU where our
+    ;    page tables are located.
+    ;
+    ; 3. Set EFER.LME bit. This tells the CPU that when paging is turned on,
+    ;    it should enter 64-bit long mode. Setting LME alone does NOT activate
+    ;    long mode yet.
+    ;
+    ; 4. Add a new 64-bit code entry to the GDT. The entry must have L = 1
+    ;    for 64-bit mode and D = 0 (not 32-bit mode). Entry #3 will have 0x18 as
+    ;    its selector. We do not need another data entry. In 64-bit mode normal
+    ;    data segmentation is mostly unused. We also need to update the GDT size
+    ;    from 23 to 31.
+    ;
+    ; 5. Set the CR0.PG bit to turn paging on and active 64-bit long mode.
+    ;
+    ; 6. Far jump to GDT entry #3 (selector 0x18). This will set our 32-bit
+    ;    CS register from 0x8 to 0x18 to use our new GDT entry.
+    ;
+    ; Note: We will be using a somewhat unconventional way of counting bits with
+    ; the lowest bit being 1 and highest bit being 32.
+
+    ; Turn on CR4.PAE (bit 6)
+    mov eax, cr4
+    or eax, 0b00000000000000000000000000100000
+    mov cr4, eax
+
+    ; Put PML4 address in CR3 (96 KB or 98304 bytes)
+    ; Control registers must be loaded from general purpose regsiters.
+    mov eax, 98304
+    mov cr3, eax
+
+    ; Turn on EFER.LME (bit 9)
+    ; EFER is an MSR regsiter and must be accessed using special
+    ; instructions: rdmsr and wrmsr
+    mov ecx, 0xC0000080                            ; Select EFER
+    rdmsr                                          ; Read EFER int EDX:EAX
+    or eax, 0b00000000000000000000000100000000     ; turn on bit 9 (LME)
+    wrmsr                                          ; Write EDX:EAX back to EFER
+
+    ; Turn on Paging (CR0.PG) - bit 32
+    mov eax, cr0
+    or eax, 0b10000000000000000000000000000000
+    mov cr0, eax
+
+    jmp 0x18:long_mode
+
+    ; -----------------------------------------------------------------------------
+    ; 64-bit Long Mode
+    ; -----------------------------------------------------------------------------
+
+    [bits 64]
+    
+    long_mode:
+
+        mov byte [0xB8000], 'H'             ; Just put H on the screen
+        jmp $                               ; And stay here forever for now
+
 
 
 ; -----------------------------------------------------------------------------
@@ -347,6 +412,14 @@ gdt:
     db 0                                ; base: 0
 
 
+                                        ; entry #3 - 64-bit code segment
+    db 0xff, 0xff                       ; limit: 4 GB
+    db 0, 0, 0                          ; base: 0
+    db 10011010b                        ; code, readable, ring 0, present
+    db 10101111b                        ; 64-bit: L=1, D=0, 4 KB granularity
+    db 0                                ; base: 0
+
+
 ; -----------------------------------------------------------------------------
 ; GDT Descriptor
 ; -----------------------------------------------------------------------------
@@ -355,7 +428,7 @@ gdt:
 ; can load it into memory.
 
 gdt_descriptor:
-    dw 23                               ; GDT size (technically GDT limit 24 bytes - 1)
+    dw 31                               ; GDT size (technically GDT limit 32 bytes - 1)
     dd gdt                              ; GDT address
 
 
