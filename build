@@ -17,10 +17,17 @@ dd if=boot/stage1.bin of=disk.img conv=notrunc
 dd if=boot/stage2.bin of=disk.img bs=512 seek=1 conv=notrunc
 
 # Run QEMU
+if [[ "$(uname)" == "Darwin" ]]; then
+    DISPLAY_ARGS="-display cocoa,zoom-to-fit=on"
+else
+    DISPLAY_ARGS="-display gtk,zoom-to-fit=on"
+fi
+
 qemu-system-x86_64 \
     -cpu qemu64 \
     -no-reboot \
     -no-shutdown \
+    $DISPLAY_ARGS \
     -drive format=raw,file=disk.img
 
 # Clean up intermediate files
