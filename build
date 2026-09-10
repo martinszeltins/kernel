@@ -28,7 +28,7 @@ qemu-system-x86_64 \
     -no-reboot \
     -no-shutdown \
     $DISPLAY_ARGS \
-    -drive format=raw,file=disk.img
+    -drive format=raw,file=disk.img,if=ide,index=0
 
 # Clean up intermediate files
 rm boot/stage1.bin

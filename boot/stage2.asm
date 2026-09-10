@@ -380,6 +380,74 @@ protected_mode:
     
     long_mode:
 
+        ; test reading sector 0 -> 95 KB
+        ; First lets just write out on screen 95 KB contents of RAM as it is now
+        ; so later we can write it out again after we have read from disk and see
+        ; if it is different
+
+        ; TODO: Print on screen RAM at 95 KB (super simple)
+        ; Expecting to see: 00101010101101101010 ect. being printed on screen.
+
+        mov dx, 0x01F6       ; LBA highest bits / drive / flags
+        mov al, 0b11100000
+        out dx, al
+
+        mov dx, 0x01F2        ; sector count
+        mov al, 1             ; 1 sector
+        out dx, al
+
+        mov dx, 0x01F3       ; LBA low bits
+        mov al, 0b00000000
+        out dx, al
+
+        mov dx, 0x01F4       ; LBA middle bits
+        mov al, 0b00000000
+        out dx, al
+
+        mov dx, 0x01F5       ; LBA high bits
+        mov al, 0b00000000
+        out dx, al
+
+        mov dx, 0x01F7       ; Command
+        mov al, 0x20         ; READ command
+        out dx, al
+
+        check_status:
+        mov dx, 0x01F7       ; Status (8 bits, so goes into AL)
+        in al, dx
+
+        test al, 0b10000000  ; Disk busy?
+        jnz check_status
+        
+        test al, 0b00000001  ; Error? Lets just hang in that case.
+        jnz check_status
+
+        test al, 0b00001000  ; Data ready?
+        jz check_status
+
+
+        mov rbx, 97280       ; 95 KB - where to store data in RAM
+        mov rcx, 0           ; how bytes we have read so far out of 512
+        mov dx, 0x01F0
+
+        disk_read:
+        in ax, dx            ; 0x01F0 will hold 16 bits, put them in ax
+        mov [rbx], ax        ; store that data in RAM
+        add rbx, 2           ; move 2 bytes ahead
+        add rcx, 2           ; increase bytes read
+
+        cmp rcx, 512
+        jne disk_read        ; not finished yet? read the next 2 bytes (16 bits)
+        
+        ; DONE!
+        ; Let write out on screen the binary output of RAM at 95 KB now
+        ; So we would see that it is different than it was before we read
+        ; sector 0 into it.
+
+        ; TODO: Print on screen RAM at 95 KB (super simple)
+        ; Expecting to see: 00101010101101101010 ect. being printed on screen.
+        
+
         mov byte [0xB8000], 'H'             ; Just put H on the screen
         jmp $                               ; And stay here forever for now
 
