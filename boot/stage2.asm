@@ -315,6 +315,22 @@ protected_mode:
     mov dword [eax + (8 * 184)], 00000000000010111000000000000011b           ; lower 32 bits of PT[184] entry
     mov dword [eax + (8 * 184) + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
+    ; -------------------------------------------------------------------------
+    ; PT[256-511] - Kernel (1 MB - 2 MB)
+    ; -------------------------------------------------------------------------
+
+    ; mov ebx, 256                                                              ; Map 256 pages (1 MB)
+
+    ; map_kernel:
+    ; mov dword [eax + (8 * ebx)], 00000000000100000000000000000011b            ; lower 32 bits of PT entry
+    ; mov dword [eax + (8 * ebx) + 4], 00000000000000000000000000000000b        ; upper 32 bits
+
+    ; add ebx, 1     ; move to next page
+    ; cmp ebx, 512   ; have we already mapped 256 pages?
+
+    ; jne map_kernel ; keep doing it until we map all 256 pages
+
+
 
     ; -----------------------------------------------------------------------
     ; Prepare and Enter 64-bit Long Mode
@@ -380,13 +396,9 @@ protected_mode:
     
     long_mode:
 
+        ; |________________________________________________________________________________________
         ; test reading sector 0 -> 95 KB
-        ; First lets just write out on screen 95 KB contents of RAM as it is now
-        ; so later we can write it out again after we have read from disk and see
-        ; if it is different
-
-        ; TODO: Print on screen RAM at 95 KB (super simple)
-        ; Expecting to see: 00101010101101101010 ect. being printed on screen.
+        ; Now know how to read from disk
 
         mov dx, 0x01F6       ; LBA highest bits / drive / flags
         mov al, 0b11100000
@@ -439,13 +451,9 @@ protected_mode:
         cmp rcx, 512
         jne disk_read        ; not finished yet? read the next 2 bytes (16 bits)
         
-        ; DONE!
-        ; Let write out on screen the binary output of RAM at 95 KB now
-        ; So we would see that it is different than it was before we read
-        ; sector 0 into it.
-
-        ; TODO: Print on screen RAM at 95 KB (super simple)
-        ; Expecting to see: 00101010101101101010 ect. being printed on screen.
+        ; Test finished. We read 512 bytes from disk into RAM at 95 KB.
+        ; DONE! We now know how to read from disk and talk to the disk directly!
+        ; |________________________________________________________________________________________
         
 
         mov byte [0xB8000], 'H'             ; Just put H on the screen

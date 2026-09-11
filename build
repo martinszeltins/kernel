@@ -24,6 +24,7 @@ else
 fi
 
 qemu-system-x86_64 \
+    -m 32M \
     -cpu qemu64 \
     -no-reboot \
     -no-shutdown \
