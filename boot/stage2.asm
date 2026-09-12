@@ -1,6 +1,46 @@
 org 0x7E00                             ; Stage 1 loads us at 0x7E00 (31.5 KB). Tell NASM our
                                        ; location so label addresses are calculated correctly.
 
+
+; -----------------------------------------------------------------------------
+; Get Memory Map From BIOS
+; -----------------------------------------------------------------------------
+;
+; Lets use BIOS E820 routine to get a map of available and reserved memory
+; so we can use it later to construct our memory bitmap.
+;
+; Location: 112 KB
+;
+mov ebx, 0                                  ; Rquesting entry #0, BIOS will update it
+                                            ; after each request to point to next one.
+
+mov di, 0                                   ; We will increment DI inside the loop for ES:DI
+
+req_sysmap:
+    mov eax, 0xE820                         ; BIOS E820 routine
+    mov edx, 0x534D4150                     ; Magic word "SMAP" (requesting system map)
+    mov ecx, 20                             ; Give us 20 bytes of info per entry
+    mov bp, 7168                            ; Put results in 112 KB in RAM (ES * 16:DI)
+    mov es, bp                              ; The fun of real mode addressing ;)
+    
+    int 0x15                                ; Call the BIOS interrupt
+
+    add di, 20                              ; Increment RAM offset for next entry
+
+    cmp ebx, 0                              ; Continue requesting entries until ebx is 0
+    jne req_sysmap
+
+
+   ; Add last entry to null terminate (all 0s)
+    mov eax, 0
+    null_terminate:
+    mov byte [es:di], 0                     
+    add di, 1
+    add eax, 1
+    cmp eax, 20
+    jne null_terminate
+
+
 ; -----------------------------------------------------------------------------
 ; Enter Protected Mode
 ; -----------------------------------------------------------------------------
@@ -319,16 +359,19 @@ protected_mode:
     ; PT[256-511] - Kernel (1 MB - 2 MB)
     ; -------------------------------------------------------------------------
 
-    ; mov ebx, 256                                                              ; Map 256 pages (1 MB)
+    mov ebx, 256                                                              ; Map 256 pages (1 MB)
+    mov ecx, 00000000000100000000000000000011b                                ; Starting position
 
-    ; map_kernel:
-    ; mov dword [eax + (8 * ebx)], 00000000000100000000000000000011b            ; lower 32 bits of PT entry
-    ; mov dword [eax + (8 * ebx) + 4], 00000000000000000000000000000000b        ; upper 32 bits
+    map_kernel:
+        mov dword [eax + (8 * ebx)], ecx                                      ; lower 32 bits of PT entry
+        mov dword [eax + (8 * ebx) + 4], 00000000000000000000000000000000b    ; upper 32 bits
 
-    ; add ebx, 1     ; move to next page
-    ; cmp ebx, 512   ; have we already mapped 256 pages?
+        add ebx, 1     ; move to next page
+        add ecx, 4096  ; ecx + 4KB (next page)
 
-    ; jne map_kernel ; keep doing it until we map all 256 pages
+        cmp ebx, 512   ; have we already mapped 256 pages?
+
+        jne map_kernel ; keep doing it until we map all 256 pages
 
 
 

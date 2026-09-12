@@ -15,3 +15,23 @@ R12
 R13
 R14
 R15
+
+# Real Mode
+
+EAX
+EBX
+ECX
+EDX
+ESI
+EDI
+EBP
+
+# Protected Mode
+
+EAX
+EBX
+ECX
+EDX
+ESI
+EDI
+EBP
