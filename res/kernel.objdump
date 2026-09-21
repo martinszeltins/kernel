@@ -1,0 +1,185 @@
+$ objdump \                                                                                                 
+    -D \           
+    -b binary \      
+    -m i386:x86-64 \
+    -Mintel \         
+    --adjust-vma=0x100000 \
+    kernel/kernel.bin                
+
+kernel/kernel.bin:     file format binary
+
+
+Disassembly of section .data:
+
+0000000000100000 <.data>:
+  100000:       55                      push   rbp
+  100001:       48 89 e5                mov    rbp,rsp
+  100004:       48 83 ec 10             sub    rsp,0x10
+  100008:       48 c7 45 f8 00 80 0b    mov    QWORD PTR [rbp-0x8],0xb8000
+  10000f:       00 
+  100010:       48 8b 45 f8             mov    rax,QWORD PTR [rbp-0x8]
+  100014:       c6 00 4b                mov    BYTE PTR [rax],0x4b
+  100017:       48 8b 45 f8             mov    rax,QWORD PTR [rbp-0x8]
+  10001b:       48 83 c0 01             add    rax,0x1
+  10001f:       c6 00 07                mov    BYTE PTR [rax],0x7
+  100022:       eb fe                   jmp    0x100022
+
+; ---------------------------------------------------------------
+; Comments
+; ---------------------------------------------------------------
+
+kernel/kernel.bin:     file format binary
+; objdump is telling us this is a raw binary file.
+; There is no ELF header or other executable metadata.
+
+
+Disassembly of section .data:
+; Because this is a raw binary with no section information, objdump gives
+; the bytes the generic name ".data". They are actually our machine code.
+
+
+0000000000100000 <.data>:
+; We told objdump that the first byte should be considered address 0x100000.
+; 0x100000 = 1 MB, which is where we plan to load the kernel in RAM.
+
+
+100000:  55
+         push rbp
+; Push the current RBP register value onto the stack.
+; GCC does this because it is about to use RBP as the frame pointer for main().
+; RSP decreases by 8 bytes because we pushed one 64-bit value.
+
+
+100001:  48 89 e5
+         mov rbp,rsp
+; Copy the current stack pointer (RSP) into RBP.
+;
+; RBP now becomes the base of main()'s stack frame.
+;
+; Roughly:
+;
+;       RBP ──→ main() stack frame
+
+
+100004:  48 83 ec 10
+         sub rsp,0x10
+; Subtract 16 bytes from RSP.
+;
+; This reserves 16 bytes of stack space for main()'s local variables.
+;
+; Remember: the stack grows toward LOWER addresses.
+;
+; RBP
+;  │
+;  ├── ...
+;  │
+;  ├── [RBP - 8]   ← vga_memory will be stored here
+;  │
+;  └── ...
+;      RSP
+
+
+100008:  48 c7 45 f8 00 80 0b
+10000f:  00
+         mov QWORD PTR [rbp-0x8],0xb8000
+; IMPORTANT: those two displayed lines are ONE instruction.
+;
+; objdump simply wrapped the final byte onto the next line.
+;
+; Store the 64-bit value 0xB8000 at memory location RBP - 8.
+;
+; 0xB8000 = 736 KB = VGA text memory.
+;
+; This corresponds to:
+;
+;     char *vga_memory = (char *) 0xB8000;
+;
+; So our local variable looks like:
+;
+;     [RBP - 8] = 0xB8000
+
+
+100010:  48 8b 45 f8
+         mov rax,QWORD PTR [rbp-0x8]
+; Load our vga_memory pointer from the stack into RAX.
+;
+; Therefore:
+;
+;     RAX = 0xB8000
+;
+; RAX now points at the first byte of VGA text memory.
+
+
+100014:  c6 00 4b
+         mov BYTE PTR [rax],0x4b
+; Write one byte, 0x4B, to the memory address stored in RAX.
+;
+; RAX = 0xB8000
+;
+; therefore:
+;
+;     RAM[0xB8000] = 0x4B
+;
+; 0x4B is ASCII 'K'.
+;
+; This corresponds to:
+;
+;     vga_memory[0] = 'K';
+
+
+100017:  48 8b 45 f8
+         mov rax,QWORD PTR [rbp-0x8]
+; Load vga_memory from our local variable again.
+;
+; So once again:
+;
+;     RAX = 0xB8000
+
+
+10001b:  48 83 c0 01
+         add rax,0x1
+; Add 1 to the address.
+;
+; Before:
+;
+;     RAX = 0xB8000
+;
+; After:
+;
+;     RAX = 0xB8001
+;
+; Because vga_memory is a char pointer, vga_memory[1] means exactly
+; one byte after vga_memory[0].
+
+
+10001f:  c6 00 07
+         mov BYTE PTR [rax],0x7
+; Write byte 0x07 to address 0xB8001.
+;
+; VGA text mode uses:
+;
+;     byte 0 = character
+;     byte 1 = color/attribute
+;
+; So now:
+;
+;     0xB8000 = 0x4B = 'K'
+;     0xB8001 = 0x07 = light gray on black
+;
+; This corresponds to:
+;
+;     vga_memory[1] = 0x07;
+
+
+100022:  eb fe
+         jmp 0x100022
+; Jump back to this exact same instruction forever.
+;
+; Conceptually:
+;
+;     0x100022:
+;         jmp 0x100022
+;
+; This corresponds to:
+;
+;     for (;;);
