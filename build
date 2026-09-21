@@ -1,14 +1,38 @@
 #!/bin/sh
 set -e
 
+# Compile C kernel
+gcc \
+    -m64 \
+    -ffreestanding \
+    -fno-pie \
+    -mno-red-zone \
+    -fcf-protection=none \
+    -fno-asynchronous-unwind-tables \
+    -fno-unwind-tables \
+    -O0 \
+    -c kernel/main.c \
+    -o kernel/main.o
+
+ld \                                
+    -m elf_x86_64 \
+    -Ttext 0x100000 \
+    -e main \
+    --oformat binary \
+    -o kernel/kernel.bin \
+    kernel/main.o
+
+rm kernel/main.o
+
+
 # Compile stage 1
 nasm -f bin boot/stage1.asm -o boot/stage1.bin
 
 # Compile Stage 2
 nasm -f bin boot/stage2.asm -o boot/stage2.bin
 
-# Create disk image
-dd if=/dev/zero of=disk.img bs=1048576 count=1
+# Create disk image (12 MB)
+dd if=/dev/zero of=disk.img bs=1048576 count=12
 
 # Put Stage 1 in sector 0
 dd if=boot/stage1.bin of=disk.img conv=notrunc
