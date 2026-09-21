@@ -14,7 +14,7 @@ gcc \
     -c kernel/main.c \
     -o kernel/main.o
 
-ld \                                
+ld \
     -m elf_x86_64 \
     -Ttext 0x100000 \
     -e main \
@@ -40,8 +40,11 @@ dd if=boot/stage1.bin of=disk.img conv=notrunc
 # Put Stage 2 in sector 1
 dd if=boot/stage2.bin of=disk.img bs=512 seek=1 conv=notrunc
 
+# Put kernel at 10.6 MB (sectors 21709 - 23756)
+dd if=kernel/kernel.bin of=disk.img bs=512 seek=21709 conv=notrunc
+
 # Run QEMU
-if [[ "$(uname)" == "Darwin" ]]; then
+if [ "$(uname)" = "Darwin" ]; then
     DISPLAY_ARGS="-display cocoa,zoom-to-fit=on"
 else
     DISPLAY_ARGS="-display gtk,zoom-to-fit=on"
