@@ -9,9 +9,9 @@ org 0x7E00                             ; Stage 1 loads us at 0x7E00 (31.5 KB). T
 ; Lets use BIOS E820 routine to get a map of available and reserved memory
 ; so we can use it later to construct our memory bitmap.
 ;
-; Location: 112 KB
+; Location: 112 KB - 116 KB (1 page)
 ;
-mov ebx, 0                                  ; Rquesting entry #0, BIOS will update it
+mov ebx, 0                                  ; Requesting entry #0, BIOS will update it
                                             ; after each request to point to next one.
 
 mov di, 0                                   ; We will increment DI inside the loop for ES:DI
@@ -373,6 +373,12 @@ protected_mode:
 
         jne map_kernel ; keep doing it until we map all 256 pages
 
+    ; -------------------------------------------------------------------------
+    ; PT[28] - E820 Map (112 KB - 116 KB)
+    ; -------------------------------------------------------------------------
+    
+    mov dword [eax + (8 * 28)], 00000000000000011100000000000011b           ; lower 32 bits of PT[28] entry
+    mov dword [eax + (8 * 28) + 4], 00000000000000000000000000000000b       ; upper 32 bits
 
 
     ; -----------------------------------------------------------------------
