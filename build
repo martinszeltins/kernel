@@ -9,6 +9,7 @@ gcc \
     -mno-red-zone \
     -fcf-protection=none \
     -fno-asynchronous-unwind-tables \
+    -fno-stack-protector \
     -fno-unwind-tables \
     -O0 \
     -c kernel/main.c \
