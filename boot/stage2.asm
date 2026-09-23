@@ -445,16 +445,12 @@ protected_mode:
     
     long_mode:
 
-        ; |________________________________________________________________________________________
-        ; test reading sector 0 -> 95 KB
-        ; Now know how to read from disk
-
         mov dx, 0x01F6       ; LBA highest bits / drive / flags
-        mov al, 0b11100000
+        mov al, 0b11100000   ; OBS, LBA, OBS, 0
         out dx, al
 
         mov dx, 0x01F2        ; sector count
-        mov al, 1             ; 1 sector
+        mov al, 2048          ; 2048 sectors
         out dx, al
 
         mov dx, 0x01F3       ; LBA low bits
@@ -488,11 +484,11 @@ protected_mode:
 
 
         mov rbx, 97280       ; 95 KB - where to store data in RAM
-        mov rcx, 0           ; how bytes we have read so far out of 512
-        mov dx, 0x01F0
+        mov rcx, 0           ; how many bytes we have read so far out of 512
+        mov dx, 0x01F0       ; Data port
 
         disk_read:
-        in ax, dx            ; 0x01F0 will hold 16 bits, put them in ax
+        in ax, dx            ; 0x01F0 will hold 16 bits, put them in ax; next read will give the next 16 bits etc.
         mov [rbx], ax        ; store that data in RAM
         add rbx, 2           ; move 2 bytes ahead
         add rcx, 2           ; increase bytes read
@@ -500,14 +496,9 @@ protected_mode:
         cmp rcx, 512
         jne disk_read        ; not finished yet? read the next 2 bytes (16 bits)
         
-        ; Test finished. We read 512 bytes from disk into RAM at 95 KB.
-        ; DONE! We now know how to read from disk and talk to the disk directly!
-        ; |________________________________________________________________________________________
-        
 
         mov byte [0xB8000], 'H'             ; Just put H on the screen
         jmp $                               ; And stay here forever for now
-
 
 
 ; -----------------------------------------------------------------------------
