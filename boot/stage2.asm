@@ -445,57 +445,33 @@ protected_mode:
     
     long_mode:
 
-        mov dx, 0x01F6       ; LBA highest bits / drive / flags
-        mov al, 0b11100000   ; OBS, LBA, OBS, 0
-        out dx, al
+        ; -----------------------------------------------------------------------------
+        ; Load kernel from disk
+        ; -----------------------------------------------------------------------------
+        ;
+        ; We will load our kernel from the disk which is located at 10.6 - 11.6 MB on disk
+        ; and put it in RAM at 1 MB - 2 MB. For now we will assume our kernel is 1 MB in
+        ; size. If it ever grows bigger than that, we will adjust the code.
 
-        mov dx, 0x01F2        ; sector count
-        mov al, 2048          ; 2048 sectors
-        out dx, al
-
-        mov dx, 0x01F3       ; LBA low bits
-        mov al, 0b00000000
-        out dx, al
-
-        mov dx, 0x01F4       ; LBA middle bits
-        mov al, 0b00000000
-        out dx, al
-
-        mov dx, 0x01F5       ; LBA high bits
-        mov al, 0b00000000
-        out dx, al
-
-        mov dx, 0x01F7       ; Command
-        mov al, 0x20         ; READ command
-        out dx, al
-
-        check_status:
-        mov dx, 0x01F7       ; Status (8 bits, so goes into AL)
-        in al, dx
-
-        test al, 0b10000000  ; Disk busy?
-        jnz check_status
+        mov rdi, 1048576    ; RAM destination: 1 MB
+        mov rbx, 21709      ; Starting disk LBA: 10.6 MB
+        mov rcx, 2048       ; Sectors remaining. 1 MB ÷ 512
         
-        test al, 0b00000001  ; Error? Lets just hang in that case.
-        jnz check_status
+        mov dx, 0x01F6       ; ATA device register | LBA highest bits / drive / flags
+        mov al, 0b11100000   ; Select disk 0, use LBA addressing | OBS, LBA, OBS, 0, 0000
+        out dx, al
 
-        test al, 0b00001000  ; Data ready?
-        jz check_status
+        mov dx, 0x01F2      ; ATA sector count register
+        mov al, 1           ; Request 1 sector (512 bytes)
+        out dx, al
 
+        mov dx, 0x01F3       ; LBA low bits (bits 0–7)                                        ⇣⇣⇣
+        mov al, bl           ; Lowest 8 bits of our LBA (RBX);  RBX (0-63), EBX (0-31), BX (0-15), BH (8-15), BL (0-7)
+        out dx, al
 
-        mov rbx, 97280       ; 95 KB - where to store data in RAM
-        mov rcx, 0           ; how many bytes we have read so far out of 512
-        mov dx, 0x01F0       ; Data port
-
-        disk_read:
-        in ax, dx            ; 0x01F0 will hold 16 bits, put them in ax; next read will give the next 16 bits etc.
-        mov [rbx], ax        ; store that data in RAM
-        add rbx, 2           ; move 2 bytes ahead
-        add rcx, 2           ; increase bytes read
-
-        cmp rcx, 512
-        jne disk_read        ; not finished yet? read the next 2 bytes (16 bits)
-        
+        mov dx, 0x01F4       ; LBA middle bits (bits 8–15)
+        mov al, bh           ; Take bits 8–15 of our LBA - that is BH (see above)
+        out dx, al
 
         mov byte [0xB8000], 'H'             ; Just put H on the screen
         jmp $                               ; And stay here forever for now
