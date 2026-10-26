@@ -456,25 +456,65 @@ protected_mode:
         mov rdi, 1048576    ; RAM destination: 1 MB
         mov rbx, 21709      ; Starting disk LBA: 10.6 MB
         mov rcx, 2048       ; Sectors remaining. 1 MB ÷ 512
-        
-        mov dx, 0x01F6       ; ATA device register | LBA highest bits / drive / flags
-        mov al, 0b11100000   ; Select disk 0, use LBA addressing | OBS, LBA, OBS, 0, 0000
-        out dx, al
 
-        mov dx, 0x01F2      ; ATA sector count register
-        mov al, 1           ; Request 1 sector (512 bytes)
-        out dx, al
+        disk_read_kernel_sector:
+            mov dx, 0x01F6       ; ATA device register | LBA highest bits / drive / flags
+            mov al, 0b11100000   ; Select disk 0, use LBA addressing | OBS, LBA, OBS, 0, 0000
+            out dx, al
 
-        mov dx, 0x01F3       ; LBA low bits (bits 0–7)                                        ⇣⇣⇣
-        mov al, bl           ; Lowest 8 bits of our LBA (RBX);  RBX (0-63), EBX (0-31), BX (0-15), BH (8-15), BL (0-7)
-        out dx, al
+            mov dx, 0x01F2      ; ATA sector count register
+            mov al, 1           ; Request 1 sector (512 bytes)
+            out dx, al
 
-        mov dx, 0x01F4       ; LBA middle bits (bits 8–15)
-        mov al, bh           ; Take bits 8–15 of our LBA - that is BH (see above)
-        out dx, al
+            mov dx, 0x01F3       ; LBA low bits (bits 0–7)                                        ⇣⇣⇣
+            mov al, bl           ; Lowest 8 bits of our LBA (RBX);  RBX (0-63), EBX (0-31), BX (0-15), BH (8-15), BL (0-7)
+            out dx, al
 
-        mov byte [0xB8000], 'H'             ; Just put H on the screen
-        jmp $                               ; And stay here forever for now
+            mov dx, 0x01F4       ; LBA middle bits (bits 8–15)
+            mov al, bh           ; Take bits 8–15 of our LBA - that is BH (see above)
+            out dx, al
+
+            mov dx, 0x01F5       ; LBA high bits (bits 16–23)
+            mov al, 0            ; Bits 16–23 of our LBA are all zeros. Phew!
+            out dx, al
+
+            mov dx, 0x01F7       ; Command register
+            mov al, 0x20         ; READ command
+            out dx, al
+
+            check_status:
+                mov dx, 0x01F7        ; ATA status register
+                in al, dx             ; Read the 8-bit status into AL
+
+                test al, 0b10000000   ; Is the disk busy? (bit 7 = BSY)
+                jnz check_status      ; Yes? Keep waiting
+
+                test al, 0b00000001   ; Error? Lets just hang in that case.
+                jnz check_status
+
+                test al, 0b00001000   ; Is the data ready? (bit 3 = DRQ)
+                jz check_status       ; No? Keep waiting
+
+            mov r8, 256               ; Reading 1 sector takes 256 reads (1 read is 2 bytes / 16 bits)
+
+            mov dx, 0x01F0            ; ATA data port
+
+            disk_read:
+                in ax, dx             ; Read the next 16 bits (2 bytes)
+                mov [rdi], ax         ; Copy the 2 bytes to RAM
+                add rdi, 2            ; Move RAM destination forward by 2 bytes
+
+                sub r8, 1            ; Read until we have read the whole sector/block (256 reads, 2 bytes at a time = 512 bytes)
+                jnz disk_read
+
+            add rbx, 1           ; Move on to the next sector
+            sub rcx, 1           ; One less sector to read
+            jnz disk_read_kernel_sector
+
+        mov rax, 1048576         ; Our kernel in RAM at 1 MB (1048576 bytes). We will jump to it now.
+        call rax                 ; Jump to the kernel. Better use call instead of jmp here since we are entering C code which expects a return address on the stack and expects a particular stack alignment.
+
+        jmp $                               ; This is the kernel. We never exit (duh)!
 
 
 ; -----------------------------------------------------------------------------

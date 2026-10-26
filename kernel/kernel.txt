@@ -1,0 +1,102 @@
+C source:
+void main() {
+    char *vga_memory = (char *) 0xB8000;
+
+    vga_memory[0] = 'K';
+    vga_memory[1] = 0x07;
+
+    for (;;);
+}
+
+Raw compiled machine code:
+55 48 89 e5 48 83 ec 10 48 c7 45 f8 00 80 0b 00 48 8b 45 f8 c6 00 4b 48 8b 45 f8 48 83 c0 01 c6 00 07 eb fe
+
+Decode:
+55                        ; push rbp
+48 89 e5                  ; mov rbp, rsp
+48 83 ec 10               ; sub rsp, 0x10
+48 c7 45 f8 00 80 0b 00   ; mov qword [rbp-8], 0xB8000
+48 8b 45 f8               ; mov rax, [rbp-8]
+c6 00 4b                  ; mov byte [rax], 'K'
+48 8b 45 f8               ; mov rax, [rbp-8]
+48 83 c0 01               ; add rax, 1
+c6 00 07                  ; mov byte [rax], 0x07
+eb fe                     ; jmp $
+
+
+; -----------------------------------------------------------------------------
+; 1. Prepare the stack for our C function main()
+; -----------------------------------------------------------------------------
+;
+; GCC automatically generates these instructions at the beginning of main().
+; This is called the "function prologue".
+;
+; RSP = Stack Pointer (where the top of our stack currently is)
+; RBP = Base Pointer (a stable reference point for local variables)
+
+55                        ; push rbp
+                          ; Save the previous RBP value on the stack.
+
+48 89 e5                  ; mov rbp, rsp
+                          ; Set RBP to our current stack position.
+                          ; Now GCC can use RBP to access local variables.
+
+48 83 ec 10               ; sub rsp, 0x10
+                          ; Reserve 16 bytes on the stack for this function.
+                          ; Remember: the stack grows toward LOWER addresses!
+                          ; GCC reserves 16 bytes of stack space.
+                          ; Our local pointer needs 8 bytes.
+                          ; The other 8 are padding for alignment.
+
+
+; -----------------------------------------------------------------------------
+; 2. Create our C variable: char *vga_memory = (char *) 0xB8000;
+; -----------------------------------------------------------------------------
+
+48 c7 45 f8 00 80 0b 00   ; mov qword [rbp-8], 0xB8000
+                          ; Store the VGA memory address (0xB8000) on the stack.
+                          ; [rbp-8] is where GCC decided to keep our local
+                          ; variable called vga_memory.
+                          ;
+                          ; IMPORTANT: We are NOT writing to VGA memory yet!
+                          ; We are only saving its ADDRESS in our variable.
+
+
+; -----------------------------------------------------------------------------
+; 3. Execute: vga_memory[0] = 'K';
+; -----------------------------------------------------------------------------
+
+48 8b 45 f8               ; mov rax, [rbp-8]
+                          ; Retrieve our vga_memory variable from the stack.
+                          ; Now RAX contains 0xB8000.
+
+c6 00 4b                  ; mov byte [rax], 'K'
+                          ; Write ASCII 'K' (0x4B) into memory at 0xB8000.
+                          ; This is the FIRST byte of VGA text memory.
+
+
+; -----------------------------------------------------------------------------
+; 4. Execute: vga_memory[1] = 0x07;
+; -----------------------------------------------------------------------------
+
+48 8b 45 f8               ; mov rax, [rbp-8]
+                          ; Retrieve our vga_memory variable AGAIN.
+                          ; RAX now contains 0xB8000 again.
+
+48 83 c0 01               ; add rax, 1
+                          ; Add 1 to the address.
+                          ; RAX now contains 0xB8001 (the next byte).
+
+c6 00 07                  ; mov byte [rax], 0x07
+                          ; Write the VGA color attribute at 0xB8001.
+                          ; 0x07 = light gray text on a black background.
+
+
+; -----------------------------------------------------------------------------
+; 5. Execute: for (;;);
+; -----------------------------------------------------------------------------
+
+eb fe                     ; jmp $
+                          ; Jump backwards 2 bytes (EB = short jump, FE = -2)
+                          ; Jump to this same instruction forever.
+                          ; Our C kernel never returns!
