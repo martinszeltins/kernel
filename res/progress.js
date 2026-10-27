@@ -257,3 +257,6 @@ Goal:
 The goal for now is to be able to run at least 2 programs simultaneously (time-sharing, scheduling) on our kenrel from user-space. Our kernel will start its first user-space program just like Linux at a predefined path (e.g. /bin/init) and then the init program will start 2 programs in parallel. Perhaps /bin/snake and /bin/tic-tac-toe and have them split-screen share the screen to see that multitasking works. It will require FS path resolution, memory management, scheduling, system calls, some primitive graphics, driveres, mmap, etc. It should be a good demonstartion of our operating system.
 
 Perhaps we can create a primitive desktop environment at that point as well.
+
+# Build script
+Our build script is pretty simple right now. It compiles the kernel and both stage 1 and stage 2 boot sectors. It then creates a disk by writing the stage 1 boot sector to it at the beginning, then right after it, it writes stage 2 and then it leaves a 10 MB gap for the filesystem table and then it writes the kernel. Then it just fires up QEMU with our OS.
