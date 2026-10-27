@@ -260,3 +260,7 @@ Perhaps we can create a primitive desktop environment at that point as well.
 
 # Build script
 Our build script is pretty simple right now. It compiles the kernel and both stage 1 and stage 2 boot sectors. It then creates a disk by writing the stage 1 boot sector to it at the beginning, then right after it, it writes stage 2 and then it leaves a 10 MB gap for the filesystem table and then it writes the kernel. Then it just fires up QEMU with our OS.
+
+# What next?
+
+So this is where we are now. We need to take the next baby step towards building our kernel. Perhaps a good way to look at this is where we want to arrive at the end of this journey. We want to be able to run programs on our kernel. So we need to implement the things which will allow us to do that. We can work backwards from that goal.
