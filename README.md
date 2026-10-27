@@ -4,10 +4,12 @@ This is a simple, educational kernel implementation. I am currently creating thi
 
 The `/res` directory contains a bunch of learning, useful resources about memory management, driver development, filesystem design etc.
 
-Where we are currently.
+## Where we are currently.
 We have studied and understood the boot process, memory layout, designed our own filesystem, learned how drivers work, learned & implemented protected mode, gdt, set up the stack, learned about long mode, paging, entered protected mode, studied PML4, PDPT, PD, PT, learned about virtual memory, learned how to read from disk using ATA, learned a bit of assembly along the way. We have finished implementing our stage 1 boot sector (boot/stage1.asm) and also implemented our stage 2 boot sector code (boot/stage2.asm). We have jumped to our C kernel (kernel/main.c). We have done a lot of foundational work. It was fun, it was exciting and interesting. It wasn't as hard or scary as online tutorials often want us to believe. It just required a lot of patience and precision.
 
-Our current memory layout looks like this:
+## Our current memory layout looks like this:
+
+````
   0 KB    +--------------------------------------------+
           | 0 KB - 1 KB                                |
           | IVT - Interrupt Vector Table               |
@@ -92,8 +94,11 @@ Our current memory layout looks like this:
           |                                            |
           |                                            |
           +--------------------------------------------+
+````
 
-And our current disk layout looks like this:
+## And our current disk layout looks like this:
+
+````
   0 KB    +------------------------------------------+----------------------+
           | 0 KB - 0.5 KB                            |                      |
           | Boot Sector                              | /boot/stage1.bin     |
@@ -128,15 +133,20 @@ And our current disk layout looks like this:
           |                                          |                      |
           |                                          |                      |
           +------------------------------------------+----------------------+
+````
+
+## Filesystem / disk layout
 
 For the disk I had this really cool idea of actually exposing the boot sector and the filesystem table to the users so they can actually peak into them. I want my kernel to be open, transparent and friendly to users. I don't want to hide anything from them. For now things are kept simple and hard coded - filesystem table is 10 MB, the kernel is 1 MB, stage 2 boot sector is 64 KB, stage 1 boot sector is 512 bytes. This makes it easier to work with them for now.
 
 I have a very simple plan for my filesystem structure. It will support files and directories. But I wanted to design it as simple as possible so it is easy to resolve file paths etc. The plan is to implement a simple data structure like a table.
 
+````
 | id | name    | type  | start  | size  | parentDirId  |
 | 1  | system  | dir   | 0      | 0     | null         |
 | 2  | boot    | dir   | 0      | 0     | 1            |
 | 3  | kernel  | file  | 14562  | 5489  | 1            |
+````
 
 Here is an example javascript, super simple implementation of how we might do a filesystem, we will convert this to C once we get there, this is just illustrative:
 
@@ -250,16 +260,19 @@ console.log('open', open('/system/boot/kernel'))
 
 Of course we will implement the filesystem driver in C, this is just an illustrative example in JavaScript for how we imagine this might work. The C code might be even simpler.
 
-E820 memory map:
+## E820 memory map:
+
 We also currently have retrieved the memory map from BIOS and we will use that to construct a memory bitmap so we can do memory allocation and managemnt.
 
-ABI / Systemcall API:
+## ABI / Systemcall API:
+
 When we eventually get to implementing the systemcall interface, I think it would be a good idea to make this Unix/Linux compatible. We do not need to come up with our own syscall or binary executable interface.
 
-# Build script
+## Build script
+
 Our build script is pretty simple right now. It compiles the kernel and both stage 1 and stage 2 boot sectors. It then creates a disk by writing the stage 1 boot sector to it at the beginning, then right after it, it writes stage 2 and then it leaves a 10 MB gap for the filesystem table and then it writes the kernel. Then it just fires up QEMU with our OS.
 
-Goal:
+## Goal:
 The goal for now is to be able to run at least 2 programs simultaneously (time-sharing, scheduling) on our kenrel from user-space. Our kernel will start its first user-space program just like Linux at a predefined path (e.g. /bin/init) and then the init program will start 2 programs in parallel. Perhaps /bin/snake and /bin/tic-tac-toe and have them split-screen share the screen to see that multitasking works. It will require FS path resolution, memory management, scheduling, system calls, some primitive graphics, driveres, mmap, etc. It should be a good demonstartion of our operating system.
 
 Perhaps we can create a primitive desktop environment at that point as well.
