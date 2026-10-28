@@ -1,8 +1,10 @@
-void main() {
-    char *vga_memory = (char *) 0xB8000;
+#include "../util/print.h"
 
-    vga_memory[0] = 'K';
-    vga_memory[1] = 0x07;
+void main() {
+    clear_screen();
+
+    print("[ok] kernel initialization\n");
+    print("[ok] test printing\n");
 
     for (;;);
 }

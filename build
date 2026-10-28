@@ -2,18 +2,20 @@
 set -e
 
 # Compile C kernel
-gcc \
-    -m64 \
-    -ffreestanding \
-    -fno-pie \
-    -mno-red-zone \
-    -fcf-protection=none \
-    -fno-asynchronous-unwind-tables \
-    -fno-stack-protector \
-    -fno-unwind-tables \
-    -O0 \
-    -c kernel/main.c \
-    -o kernel/main.o
+for source in kernel/main util/print; do
+    gcc \
+        -m64 \
+        -ffreestanding \
+        -fno-pie \
+        -mno-red-zone \
+        -fcf-protection=none \
+        -fno-asynchronous-unwind-tables \
+        -fno-stack-protector \
+        -fno-unwind-tables \
+        -O0 \
+        -c "$source.c" \
+        -o "$source.o"
+done
 
 ld \
     -m elf_x86_64 \
@@ -21,9 +23,9 @@ ld \
     -e main \
     --oformat binary \
     -o kernel/kernel.bin \
-    kernel/main.o
+    kernel/main.o util/print.o
 
-rm kernel/main.o
+rm kernel/main.o util/print.o
 
 
 # Compile stage 1
