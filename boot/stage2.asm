@@ -2,6 +2,14 @@ org 0x7E00                             ; Stage 1 loads us at 0x7E00 (31.5 KB). T
                                        ; location so label addresses are calculated correctly.
 
 
+mov ax, 0x0003                         ; Initialize VGA text mode (80 columns, 25 rows)
+int 0x10
+
+mov ah, 0x01                           ; Hide the blinking hardware cursor
+mov ch, 0x20
+mov cl, 0
+int 0x10
+
 ; -----------------------------------------------------------------------------
 ; Get Memory Map From BIOS
 ; -----------------------------------------------------------------------------

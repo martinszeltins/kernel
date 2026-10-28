@@ -67,4 +67,8 @@ void print(const char *text) {
             cursor_y = 0;
         }
     }
+
+    // Move cursor to the next line after each print() call
+    cursor_x = 0;
+    cursor_y++;
 }

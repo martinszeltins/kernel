@@ -3,8 +3,8 @@
 void main() {
     clear_screen();
 
-    print("[ok] kernel initialization\n");
-    print("[ok] test printing\n");
+    print("[ok] kernel initialization");
+    print("[ok] test printing");
 
     for (;;);
 }
